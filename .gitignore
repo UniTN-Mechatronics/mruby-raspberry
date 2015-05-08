@@ -1,3 +1,7 @@
+._*
+.DS_Store
+tmp/*
+
 # Object files
 *.o
 *.ko
