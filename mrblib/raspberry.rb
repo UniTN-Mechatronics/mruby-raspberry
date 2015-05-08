@@ -18,5 +18,9 @@
 #*************************************************************************#
 
 module Raspberry
-
+  class Serial
+    def closed?
+      ! @device
+    end
+  end
 end
