@@ -181,8 +181,51 @@ static mrb_value mrb_serial_close(mrb_state *mrb, mrb_value self) {
   return mrb_nil_value();
 }
 
+static mrb_value mrb_serial_putchar(mrb_state *mrb, mrb_value self) {
+  char *str = (char *)NULL;
+  char *str_len = 0;
+  int dev = mrb_fixnum(mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@device")));
+  mrb_get_args(mrb, "s", &str, &str_len);
+  serialPutchar(dev, str[0]);
+  return mrb_nil_value();
+}
 
+static mrb_value mrb_serial_puts(mrb_state *mrb, mrb_value self) {
+  char *str = (char *)NULL;
+  char *str_len = 0;
+  int dev = mrb_fixnum(mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@device")));
+  mrb_get_args(mrb, "s", &str, &str_len);
+  serialPuts(dev, str);
+  return mrb_nil_value();
+}
 
+// TO BE IMPROVED (VARARGS)
+static mrb_value mrb_serial_printf(mrb_state *mrb, mrb_value self) {
+  char *str = (char *)NULL;
+  char *str_len = 0;
+  int dev = mrb_fixnum(mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@device")));
+  mrb_get_args(mrb, "s", &str, &str_len);
+  serialPuts(dev, str);
+  return mrb_nil_value();
+}
+
+static mrb_value mrb_serial_dataAvail(mrb_state *mrb, mrb_value self) {
+  int dev = mrb_fixnum(mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@device")));
+  return mrb_fixnum_value(serialDataAvail(dev));
+}
+
+static mrb_value mrb_serial_getchar(mrb_state *mrb, mrb_value self) {
+  char str;
+  int dev = mrb_fixnum(mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@device")));
+  str = (char)serialGetchar(dev);
+  return mrb_str_new_cstr(mrb, &str);
+}
+
+static mrb_value mrb_serial_flush(mrb_state *mrb, mrb_value self) {
+  int dev = mrb_fixnum(mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@device")));
+  serialFlush(dev);
+  return mrb_nil_value();
+}
 
 
 void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
@@ -221,7 +264,13 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   serial = mrb_define_class_under(mrb, rasp, "Serial", mrb->object_class);
   mrb_define_method(mrb, serial, "initialize", mrb_serial_open, MRB_ARGS_REQ(2));
   mrb_define_method(mrb, serial, "close", mrb_serial_close, MRB_ARGS_NONE());
-
+  mrb_define_method(mrb, serial, "put_char", mrb_serial_putchar, MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, serial, "puts", mrb_serial_puts, MRB_ARGS_REQ(1));
+  // TO BE IMPROVED (VARARGS)
+  mrb_define_method(mrb, serial, "printf", mrb_serial_printf, MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, serial, "data_avail", mrb_serial_dataAvail, MRB_ARGS_NONE());
+  mrb_define_method(mrb, serial, "get_char", mrb_serial_getchar, MRB_ARGS_NONE());
+  mrb_define_method(mrb, serial, "flush", mrb_serial_flush, MRB_ARGS_NONE());
 }
 
 void mrb_mruby_raspberry_gem_final(mrb_state *mrb) {}
