@@ -63,6 +63,12 @@ static mrb_value mrb_wiringPiSetup(mrb_state *mrb, mrb_value self) {
 static mrb_value mrb_core_pinMode(mrb_state *mrb, mrb_value self) {
   mrb_int pin, mode;
   mrb_get_args(mrb, "ii", &pin, &mode);
+  if (mode != INPUT && 
+      mode != OUTPUT &&
+      mode != PWM_OUTPUT &&
+      mode != GPIO_CLOCK) {
+    mrb_raise(mrb, E_RUNTIME_ERROR, "Only INPUT, OUTPUT, PWM_OUTPUT, or GPIO_CLOCK allowed!");
+  }
   pinMode(pin, mode);
   return mrb_nil_value();
 }
@@ -70,6 +76,11 @@ static mrb_value mrb_core_pinMode(mrb_state *mrb, mrb_value self) {
 static mrb_value mrb_core_pullUpDnControl(mrb_state *mrb, mrb_value self) {
   mrb_int pin, pud;
   mrb_get_args(mrb, "ii", &pin, &pud);
+  if (pud != PUD_OFF && 
+      pud != PUD_DOWN &&
+      pud != PUD_UP) {
+    mrb_raise(mrb, E_RUNTIME_ERROR, "Only PUD_OFF, PUD_DOWN or PUD_UP allowed!");
+  }
   pullUpDnControl(pin, pud);
   return mrb_nil_value();
 }
@@ -77,6 +88,10 @@ static mrb_value mrb_core_pullUpDnControl(mrb_state *mrb, mrb_value self) {
 static mrb_value mrb_core_digitalWrite(mrb_state *mrb, mrb_value self) {
   mrb_int pin, value;
   mrb_get_args(mrb, "ii", &pin, &value);
+  if (value != HIGH && 
+      value != LOW) {
+    mrb_raise(mrb, E_RUNTIME_ERROR, "Only HIGH or LOW allowed!");
+  }
   digitalWrite(pin, value);
   return mrb_nil_value();
 }
@@ -146,9 +161,53 @@ static mrb_value mrb_timing_delayMicroseconds(mrb_state *mrb, mrb_value self) {
                  |____/| .__/ \___|\___|_|_| |_|\___|___/
                        |_|                               
 */
+static mrb_value mrb_specifics_digitalWriteByte(mrb_state *mrb, mrb_value self) {
+  mrb_int value;
+  mrb_get_args(mrb, "i", &value);
+  digitalWriteByte((char)value);
+  return mrb_nil_value();
+}
+
+static mrb_value mrb_specifics_pwmSetMode(mrb_state *mrb, mrb_value self) {
+  mrb_int mode;
+  mrb_get_args(mrb, "i", &mode);
+  if (mode != PWM_MODE_BAL && mode != PWM_MODE_MS) {
+    mrb_raise(mrb, E_RUNTIME_ERROR, "Only PWM_MODE_BAL or PWM_MODE_MS allowed!");
+  }
+  digitalWriteByte(mode);
+  return mrb_nil_value();
+}
+
+static mrb_value mrb_specifics_pwmSetRange(mrb_state *mrb, mrb_value self) {
+  unsigned int range;
+  mrb_get_args(mrb, "i", &range);
+  pwmSetRange(range);
+  return mrb_nil_value();
+}
+
+static mrb_value mrb_specifics_pwmSetClock(mrb_state *mrb, mrb_value self) {
+  mrb_int divisor;
+  mrb_get_args(mrb, "i", &divisor);
+  pwmSetRange(divisor);
+  return mrb_nil_value();
+}
+
 static mrb_value mrb_specifics_piBoardRev(mrb_state *mrb, mrb_value self) {
   return mrb_fixnum_value(piBoardRev());
 }
+
+static mrb_value mrb_specifics_wpiPinToGpio(mrb_state *mrb, mrb_value self) {
+  mrb_int pin;
+  mrb_get_args(mrb, "i", &pin);
+  return mrb_fixnum_value(wpiPinToGpio(pin));
+}
+
+static mrb_value mrb_specifics_physPinToGpio(mrb_state *mrb, mrb_value self) {
+  mrb_int pin;
+  mrb_get_args(mrb, "i", &pin);
+  return mrb_fixnum_value(physPinToGpio(pin));
+}
+
 
 
 
@@ -171,7 +230,7 @@ static mrb_value mrb_serial_open(mrb_state *mrb, mrb_value self) {
   mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@baud"), mrb_fixnum_value(baud));
   mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@port"), mrb_str_new_cstr(mrb, port_name));  
   mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@device"), mrb_fixnum_value(device));
-  return self;
+  return mrb_funcall(mrb, self, "open?", 0);
 }
 
 static mrb_value mrb_serial_close(mrb_state *mrb, mrb_value self) {
@@ -191,16 +250,6 @@ static mrb_value mrb_serial_putchar(mrb_state *mrb, mrb_value self) {
 }
 
 static mrb_value mrb_serial_puts(mrb_state *mrb, mrb_value self) {
-  char *str = (char *)NULL;
-  char *str_len = 0;
-  int dev = mrb_fixnum(mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@device")));
-  mrb_get_args(mrb, "s", &str, &str_len);
-  serialPuts(dev, str);
-  return mrb_nil_value();
-}
-
-// TO BE IMPROVED (VARARGS)
-static mrb_value mrb_serial_printf(mrb_state *mrb, mrb_value self) {
   char *str = (char *)NULL;
   char *str_len = 0;
   int dev = mrb_fixnum(mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@device")));
@@ -241,6 +290,9 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "PUD_OFF"), mrb_fixnum_value(PUD_OFF));
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "PUD_UP"), mrb_fixnum_value(PUD_UP));
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "PUD_DOWN"), mrb_fixnum_value(PUD_DOWN));
+  mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "PUD_DOWN"), mrb_fixnum_value(PUD_DOWN));
+  mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "PWM_MODE_BAL"), mrb_fixnum_value(PWM_MODE_BAL));
+  mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "PWM_MODE_MS"), mrb_fixnum_value(PWM_MODE_MS));
 
 
   core = mrb_define_module_under(mrb, rasp, "Core");
@@ -253,7 +305,14 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   mrb_define_class_method(mrb, core, "analog_read", mrb_core_analogRead, MRB_ARGS_REQ(1));
   
   specifics = mrb_define_module_under(mrb, rasp, "Specifics");
+  mrb_define_class_method(mrb, specifics, "write_byte", mrb_specifics_digitalWriteByte, MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, specifics, "pwd_set_mode", mrb_specifics_pwmSetMode, MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, specifics, "pwm_set_range", mrb_specifics_pwmSetRange, MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, specifics, "pwm_set_clock", mrb_specifics_pwmSetClock, MRB_ARGS_REQ(1));
+
   mrb_define_class_method(mrb, specifics, "board_rev", mrb_specifics_piBoardRev, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, specifics, "wpi_pin", mrb_specifics_wpiPinToGpio, MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, specifics, "phys_pin", mrb_specifics_physPinToGpio, MRB_ARGS_REQ(1));
   
   timing = mrb_define_module_under(mrb, rasp, "Timing");
   mrb_define_class_method(mrb, timing, "millis", mrb_timing_millis, MRB_ARGS_NONE());
@@ -266,8 +325,6 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   mrb_define_method(mrb, serial, "close", mrb_serial_close, MRB_ARGS_NONE());
   mrb_define_method(mrb, serial, "put_char", mrb_serial_putchar, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, serial, "puts", mrb_serial_puts, MRB_ARGS_REQ(1));
-  // TO BE IMPROVED (VARARGS)
-  mrb_define_method(mrb, serial, "printf", mrb_serial_printf, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, serial, "data_avail", mrb_serial_dataAvail, MRB_ARGS_NONE());
   mrb_define_method(mrb, serial, "get_char", mrb_serial_getchar, MRB_ARGS_NONE());
   mrb_define_method(mrb, serial, "flush", mrb_serial_flush, MRB_ARGS_NONE());

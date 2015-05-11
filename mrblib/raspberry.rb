@@ -19,8 +19,13 @@
 
 module Raspberry
   class Serial
-    def closed?
-      ! @device
+    def open?
+      @device && @device >= 0
+    end
+    def closed?; ! self.open?; end
+    
+    def printf(str, *data)
+      self.puts(sprintf(str, *data))
     end
   end
 end
