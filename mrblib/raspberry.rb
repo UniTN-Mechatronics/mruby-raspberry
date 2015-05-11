@@ -18,6 +18,10 @@
 #*************************************************************************#
 
 module Raspberry
+  def self.included(base)
+    self::setup
+  end
+
   class Serial
     def open?
       @device && @device >= 0
