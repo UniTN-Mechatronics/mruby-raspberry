@@ -225,11 +225,17 @@ static mrb_value mrb_serial_open(mrb_state *mrb, mrb_value self) {
   char *port_name = (char *)NULL;
   mrb_int port_len, baud;
   mrb_int device;
+  mrb_value valid_rate;
   mrb_get_args(mrb, "si", &port_name, &port_len, &baud);
   device = serialOpen(port_name, baud);
   mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@baud"), mrb_fixnum_value(baud));
   mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@port"), mrb_str_new_cstr(mrb, port_name));  
   mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@device"), mrb_fixnum_value(device));
+  valid_rate = mrb_funcall(mrb, self, "valid_rate?", 1, mrb_fixnum_value(baud));
+  if (mrb_obj_eq(mrb, valid_rate, mrb_false_value())) {
+    mrb_funcall(mrb, self, "close", 0);
+    mrb_raise(mrb, E_RUNTIME_ERROR, "Unsupported baud rate");
+  }
   return mrb_funcall(mrb, self, "open?", 0);
 }
 
