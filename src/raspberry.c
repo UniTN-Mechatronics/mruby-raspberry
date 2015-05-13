@@ -314,7 +314,11 @@ static mrb_value mrb_priority_SetPri(mrb_state *mrb, mrb_value self) {
     sched.sched_priority = pri ;
   
   result = sched_setscheduler(0, policy, &sched);
-  return result == 0 ? mrb_true_value() : mrb_false_value();
+  if (result != 0) {
+    perror("System message");
+    mrb_raise(mrb, E_RUNTIME_ERROR, "Could not set value");
+  }
+  return mrb_true_value();
 }
 
 static mrb_value mrb_priority_GetPri(mrb_state *mrb, mrb_value self) {
@@ -325,7 +329,7 @@ static mrb_value mrb_priority_GetPri(mrb_state *mrb, mrb_value self) {
   
   result = sched_getparam(0, &sched);
   if (result != 0) {
-    perror(NULL);
+    perror("System message");
     mrb_raise(mrb, E_RUNTIME_ERROR, "Could not get value");
   }
   return mrb_fixnum_value(sched.sched_priority);
@@ -337,7 +341,7 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   struct RClass *rasp, *core, *specifics, *timing, *serial;
   rasp = mrb_define_module(mrb, "Raspberry");
   mrb_define_class_method(mrb, rasp, "setup", mrb_wiringPiSetup, MRB_ARGS_NONE());
-  mrb_define_class_method(mrb, rasp, "priority=", mrb_priority_SetPri, MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, rasp, "set_priority", mrb_priority_SetPri, MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, rasp, "priority", mrb_priority_GetPri, MRB_ARGS_NONE());
   
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "INPUT"), mrb_fixnum_value(INPUT));
