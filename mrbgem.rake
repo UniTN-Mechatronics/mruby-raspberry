@@ -7,10 +7,14 @@ MRuby::Gem::Specification.new('mruby-raspberry') do |spec|
   spec.description = spec.summary
   spec.homepage = "Not yet defined"
   
-  spec.cc.command = 'gcc' # clang does not work!
-  spec.cc.flags << %w||
-  spec.cc.include_paths << "/usr/local/include"
+  if not build.kind_of? MRuby::CrossBuild then
+    spec.cc.command = 'gcc' # clang does not work!
+    spec.cc.flags << %w||
+    spec.cc.include_paths << "/usr/local/include"
   
-  spec.linker.library_paths << "/usr/local/lib"
-  spec.linker.libraries << %w[wiringPi]
+    spec.linker.library_paths << "/usr/local/lib"
+    spec.linker.libraries << %w[wiringPi]
+  else
+    # complete for your case scenario
+  end
 end
