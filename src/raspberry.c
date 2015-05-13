@@ -21,6 +21,7 @@
 #include <string.h>
 #include <wiringPi.h>
 #include <wiringSerial.h>
+#include <sched.h>
 
 #include "mruby.h"
 #include "mruby/variable.h"
@@ -282,11 +283,63 @@ static mrb_value mrb_serial_flush(mrb_state *mrb, mrb_value self) {
   return mrb_nil_value();
 }
 
+/*
+ ____       _            _ _         
+|  _ \ _ __(_) ___  _ __(_) |_ _   _ 
+| |_) | '__| |/ _ \| '__| | __| | | |
+|  __/| |  | | (_) | |  | | |_| |_| |
+|_|   |_|  |_|\___/|_|  |_|\__|\__, |
+                               |___/ 
+*/
+static mrb_value mrb_priority_SetPri(mrb_state *mrb, mrb_value self) {
+  mrb_int pri, result;
+  struct sched_param sched ;
+  int policy;
+  
+  mrb_get_args(mrb, "i", &pri);
+  if (pri == 0) {
+    policy = SCHED_OTHER;
+    pri = 0;
+  }
+  else if(pri > 0 && pri < 100 ) {
+    policy = SCHED_FIFO;
+  }
+  else  {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Priority level must be in [0, 99]");
+  }
+  memset (&sched, 0, sizeof(sched)) ;
+  if (pri > sched_get_priority_max(policy))
+    sched.sched_priority = sched_get_priority_max(policy) ;
+  else
+    sched.sched_priority = pri ;
+  
+  result = sched_setscheduler(0, policy, &sched);
+  return result == 0 ? mrb_true_value() : mrb_false_value();
+}
+
+static mrb_value mrb_priority_GetPri(mrb_state *mrb, mrb_value self) {
+  mrb_int result;
+  struct sched_param sched ;
+
+  memset (&sched, 0, sizeof(sched)) ;
+  
+  result = sched_getparam(0, &sched);
+  if (result != 0) {
+    perror(NULL);
+    mrb_raise(mrb, E_RUNTIME_ERROR, "Could not get value");
+  }
+  return mrb_fixnum_value(sched.sched_priority);
+}
+
+
 
 void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   struct RClass *rasp, *core, *specifics, *timing, *serial;
   rasp = mrb_define_module(mrb, "Raspberry");
   mrb_define_class_method(mrb, rasp, "setup", mrb_wiringPiSetup, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, rasp, "priority=", mrb_priority_SetPri, MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, rasp, "priority", mrb_priority_GetPri, MRB_ARGS_NONE());
+  
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "INPUT"), mrb_fixnum_value(INPUT));
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "OUTPUT"), mrb_fixnum_value(OUTPUT));
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "PWM_OUTPUT"), mrb_fixnum_value(PWM_OUTPUT));
