@@ -357,6 +357,7 @@ static mrb_value mrb_i2c_init(mrb_state *mrb, mrb_value self) {
     mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
   }
   IV_SET("@fd", mrb_fixnum_value(fd));
+  IV_SET("@device", mrb_fixnum_value(devId));
   return mrb_true_value();
 }
 
