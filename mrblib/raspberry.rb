@@ -47,7 +47,7 @@ module Raspberry
     end
     
     def read(n=nil)
-      if n then
+      if n && n > 0 then
         raise "ArgumentError", "Only Fixnum as argument" unless n.kind_of? Fixnum
         ary = []
         n.times {|i| ary << self._read; Raspberry::Timing.delay_micro(@delay || 5000) }

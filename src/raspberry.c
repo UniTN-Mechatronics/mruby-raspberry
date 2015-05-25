@@ -360,11 +360,11 @@ static mrb_value mrb_i2c_init(mrb_state *mrb, mrb_value self) {
   snprintf(filename, 19, "/dev/i2c-%d", piBoardRev() - 1);
   fd = open(filename, O_RDWR);
   if (fd < 0) {
-    mrb_raisef(mrb, E_RUNTIME_ERROR, "Error opening device %s.\n%s", filename, strerror(errno));
+    mrb_raisef(mrb, E_RUNTIME_ERROR, "Error opening device %S.\n%S", mrb_str_new_cstr(mrb, filename), mrb_str_new_cstr(mrb, strerror(errno)));
   }
   
   if (ioctl(fd, I2C_SLAVE, devId) < 0) {
-    mrb_raisef(mrb, E_RUNTIME_ERROR, "Error binding to I2C slave at %A.\n%s", devId, strerror(errno));
+    mrb_raisef(mrb, E_RUNTIME_ERROR, "Error binding to I2C slave at addresss %S\n%S", mrb_fixnum_value(devId), mrb_str_new_cstr(mrb, strerror(errno)));
   }
   
   IV_SET("@fd", mrb_fixnum_value(fd));

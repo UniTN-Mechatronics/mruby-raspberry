@@ -6,6 +6,7 @@ mruby-raspberry is a wrapper around [wiringpi library](http://wiringpi.com). At 
 
 ##Requirements and Building
 The [wiringpi library v2](http://wiringpi.com) needs to be installed before using this mruby-gem.
+Additionally, packages `i2c-tools` and `libi2c-dev` must be installed.
 
 ### Testing
 To do a quick test, after installing WiringPi, proceed as follows:
@@ -66,3 +67,16 @@ The following is the list of the implemented functions/methods. For details, see
 - `Serial#get_char()`
 - `Serial#flush()`
 - `Serial#printf(fmt, ...)`
+
+### Raspberry::I2C
+This class supports TWI/I2C communication, or at least a subset of it. It has been tested against an Arduino Uno directly connected to a Raspberry Pi Rev.2, [see here](http://blog.oscarliang.net/raspberry-pi-arduino-connected-i2c/) for details.
+
+**Requirement:** Remember to `sudo apt-get install i2c-tools libi2c-dev` before building!
+
+Supported methods:
+
+- `I2C.new(id)`: creates a new instance over the given I2C device ID
+- `I2C#write(arg)`: writes a String or an Array of Fixnums to the selected device ID. If `arg` is a single integer or char, writes it directly. If it is a string or an array of Fixnums, iterates over the elements with a delay between each write that can be set via `I2C#delay=(v)` (delay is in milliseconds, default to 5000 ms)
+- `I2C#read(n=nil)`: reads value(s) from the selected device ID. If `n=nil`, it reads a single value (as Fixnum). If `n > 0`, it performs exactly `n` read operations waiting `@delay` every time, and returns an array of `n` Fixnums
+- `I2C#read_chr`: Reads a single value and converts it to a single character
+
