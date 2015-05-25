@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 #include <wiringPi.h>
 #include <wiringSerial.h>
 #include <wiringPiI2C.h>
@@ -374,6 +375,14 @@ static mrb_value mrb_i2c_init(mrb_state *mrb, mrb_value self) {
   return mrb_true_value();
 }
 
+static mrb_value mrb_i2c_close(mrb_state *mrb, mrb_value self) {
+  int fd = mrb_fixnum(IV_GET("@fd"));
+  if (close(fd) < 0) {
+    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
+  }
+  return mrb_true_value();
+}
+
 static mrb_value mrb_i2c_read(mrb_state *mrb, mrb_value self) {
   int fd = mrb_fixnum(IV_GET("@fd"));
   mrb_int res;
@@ -512,6 +521,7 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
 
   i2c = mrb_define_class_under(mrb, rasp, "I2C", mrb->object_class);
   mrb_define_method(mrb, i2c, "initialize", mrb_i2c_init, MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, i2c, "close", mrb_i2c_close, MRB_ARGS_NONE());
   mrb_define_method(mrb, i2c, "_read", mrb_i2c_read, MRB_ARGS_NONE());
   mrb_define_method(mrb, i2c, "_write", mrb_i2c_write, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "read_reg_8", mrb_i2c_read_reg_8, MRB_ARGS_REQ(1));
