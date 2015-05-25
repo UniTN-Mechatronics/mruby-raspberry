@@ -18,12 +18,14 @@
 /***************************************************************************/
 
 #include <stdlib.h>
+#include <fcntl.h>
 #include <string.h>
 #include <errno.h>
 #include <wiringPi.h>
 #include <wiringSerial.h>
 #include <wiringPiI2C.h>
 #include <sched.h>
+#include <linux/i2c-dev.h>
 
 #include "mruby.h"
 #include "mruby/variable.h"
@@ -350,14 +352,25 @@ static mrb_value mrb_priority_GetPri(mrb_state *mrb, mrb_value self) {
   mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, (name)), value)
 
 static mrb_value mrb_i2c_init(mrb_state *mrb, mrb_value self) {
-  mrb_int devId = 0, res = 0, fd = 0;  
+  mrb_int devId = 0, fd = 0;  
+  char filename[20];
+
   mrb_get_args(mrb, "i", &devId);
-  res = wiringPiI2CSetup(devId);
-  if (res < 0) {
-    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
+  
+  snprintf(filename, 19, "/dev/i2c-%d", piBoardRev() - 1);
+  fd = open(filename, O_RDWR);
+  if (fd < 0) {
+    mrb_raisef(mrb, E_RUNTIME_ERROR, "Error opening device %s.\n%s", filename, strerror(errno));
   }
+  
+  if (ioctl(fd, I2C_SLAVE, devId) < 0) {
+    mrb_raisef(mrb, E_RUNTIME_ERROR, "Error binding to I2C slave at %A.\n%s", devId, strerror(errno));
+  }
+  
   IV_SET("@fd", mrb_fixnum_value(fd));
+  IV_SET("@fname", mrb_str_new_cstr(mrb, filename));
   IV_SET("@device", mrb_fixnum_value(devId));
+  IV_SET("@delay", mrb_fixnum_value(5000));
   return mrb_true_value();
 }
 
@@ -383,24 +396,48 @@ static mrb_value mrb_i2c_write(mrb_state *mrb, mrb_value self) {
   return mrb_fixnum_value(res);
 }
 
-static mrb_value mrb_i2c_read_reg_8(mrb_state *mrb, mrb_value self) {
+static mrb_value mrb_i2c_read_reg(mrb_state *mrb, mrb_value self, int bits) {
   int fd = mrb_fixnum(IV_GET("@fd"));
   mrb_int res;
   int reg = 0;
   mrb_get_args(mrb, "i", &reg);
-  res = wiringPiI2CReadReg8(fd, reg);
+  if (bits == 8) {
+    res = wiringPiI2CReadReg8(fd, reg);
+  }
+  else if (bits == 16) {
+    res = wiringPiI2CReadReg16(fd, reg);
+  }
+  else {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Only 8 or 16 bits allowed!");
+  }
   if (res < 0) {
     mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
   }
   return mrb_fixnum_value(res);
 }
 
+static mrb_value mrb_i2c_read_reg_8(mrb_state *mrb, mrb_value self) {
+  return mrb_i2c_read_reg(mrb, self, 8);
+}
+
 static mrb_value mrb_i2c_read_reg_16(mrb_state *mrb, mrb_value self) {
+  return mrb_i2c_read_reg(mrb, self, 16);
+}
+
+static mrb_value mrb_i2c_write_reg(mrb_state *mrb, mrb_value self, int bits) {
   int fd = mrb_fixnum(IV_GET("@fd"));
   mrb_int res;
-  int reg = 0;
-  mrb_get_args(mrb, "i", &reg);
-  res = wiringPiI2CReadReg16(fd, reg);
+  int reg = 0, data = 0;
+  mrb_get_args(mrb, "ii", &reg, &data);
+  if (bits == 8) {
+    res = wiringPiI2CWriteReg8(fd, reg, data);
+  }
+  else if (bits == 16) {
+    res = wiringPiI2CWriteReg16(fd, reg, data);
+  }
+  else {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Only 8 or 16 bits allowed!");
+  }
   if (res < 0) {
     mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
   }
@@ -408,27 +445,11 @@ static mrb_value mrb_i2c_read_reg_16(mrb_state *mrb, mrb_value self) {
 }
 
 static mrb_value mrb_i2c_write_reg_8(mrb_state *mrb, mrb_value self) {
-  int fd = mrb_fixnum(IV_GET("@fd"));
-  mrb_int res;
-  int reg = 0, data = 0;
-  mrb_get_args(mrb, "ii", &reg, &data);
-  res = wiringPiI2CWriteReg8(fd, reg, data);
-  if (res < 0) {
-    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
-  }
-  return mrb_fixnum_value(res);
+  return mrb_i2c_write_reg(mrb, self, 8);
 }
 
 static mrb_value mrb_i2c_write_reg_16(mrb_state *mrb, mrb_value self) {
-  int fd = mrb_fixnum(IV_GET("@fd"));
-  mrb_int res;
-  int reg = 0, data = 0;
-  mrb_get_args(mrb, "ii", &reg, &data);
-  res = wiringPiI2CWriteReg16(fd, reg, data);
-  if (res < 0) {
-    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
-  }
-  return mrb_fixnum_value(res);
+  return mrb_i2c_write_reg(mrb, self, 16);
 }
 
 
@@ -440,6 +461,7 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   mrb_define_class_method(mrb, rasp, "set_priority", mrb_priority_SetPri, MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, rasp, "priority", mrb_priority_GetPri, MRB_ARGS_NONE());
   
+  mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "BOARD_REV"), mrb_fixnum_value(piBoardRev()));
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "INPUT"), mrb_fixnum_value(INPUT));
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "OUTPUT"), mrb_fixnum_value(OUTPUT));
   mrb_const_set(mrb, mrb_obj_value(rasp), mrb_intern_lit(mrb, "PWM_OUTPUT"), mrb_fixnum_value(PWM_OUTPUT));
@@ -490,8 +512,8 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
 
   i2c = mrb_define_class_under(mrb, rasp, "I2C", mrb->object_class);
   mrb_define_method(mrb, i2c, "initialize", mrb_i2c_init, MRB_ARGS_REQ(1));
-  mrb_define_method(mrb, i2c, "read", mrb_i2c_read, MRB_ARGS_NONE());
-  mrb_define_method(mrb, i2c, "write", mrb_i2c_write, MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, i2c, "_read", mrb_i2c_read, MRB_ARGS_NONE());
+  mrb_define_method(mrb, i2c, "_write", mrb_i2c_write, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "read_reg_8", mrb_i2c_read_reg_8, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "read_reg_16", mrb_i2c_read_reg_16, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "write_reg_8", mrb_i2c_write_reg_8, MRB_ARGS_REQ(2));

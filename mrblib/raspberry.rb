@@ -38,4 +38,40 @@ module Raspberry
       self.puts(sprintf(str, *data))
     end
   end
+  
+  class I2C
+    attr_accessor :delay
+    
+    def read_chr
+      self.read.chr
+    end
+    
+    def read(n=nil)
+      if n then
+        raise "ArgumentError", "Only Fixnum as argument" unless n.kind_of? Fixnum
+        ary = []
+        n.times {|i| ary << self._read; Raspberry::Timing.delay_micro(@delay || 5000) }
+        return ary
+      else
+        return self._read
+      end
+    end
+    
+    def write(s)
+      case s
+      when Array
+        s.each {|c| self._write c; Raspberry::Timing.delay_micro(@delay || 5000) }
+      when String
+        if s.length == 0 then
+          self._write(s.bytes[0])
+        else
+          self.write(s.bytes)
+        end
+      when Fixnum
+        self._write(s)
+      else
+        raise ArgumentError, "Only Strings, Fixnums, or Array of Fixnums"
+      end
+    end
+  end
 end
