@@ -34,6 +34,8 @@
 #include "mruby/data.h"
 #include "mruby/class.h"
 #include "mruby/value.h"
+#include "mruby/array.h"
+//#include "i2c.h"
 
 static int g_setup = 0;
 
@@ -393,6 +395,50 @@ static mrb_value mrb_i2c_read(mrb_state *mrb, mrb_value self) {
   return mrb_fixnum_value(res);
 }
 
+static mrb_value mrb_i2c_read_str(mrb_state *mrb, mrb_value self) {
+  int fd = mrb_fixnum(IV_GET("@fd"));
+  mrb_int len = 0;
+  mrb_value str;
+  char *buf;
+  mrb_get_args(mrb, "i", &len);
+  if (len > I2C_SMBUS_BLOCK_MAX + 2)
+    mrb_raise(mrb, E_RUNTIME_ERROR, "Too big");
+
+  buf = (char*)malloc(len);
+  memset(buf, 0, len);
+  if (read(fd, buf, len) < 0) {
+    free(buf);
+    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
+  }
+  str = mrb_str_new(mrb, buf, len);
+  free(buf);
+  return str;
+}
+
+static mrb_value mrb_i2c_read_ary(mrb_state *mrb, mrb_value self) {
+  int fd = mrb_fixnum(IV_GET("@fd"));
+  mrb_int len = 0;
+  int i;
+  mrb_value ary;
+  char *buf;
+  mrb_get_args(mrb, "i", &len);
+  if (len > I2C_SMBUS_BLOCK_MAX + 2)
+    mrb_raise(mrb, E_RUNTIME_ERROR, "Too big");
+
+  buf = (char*)malloc(len);
+  memset(buf, 0, len);
+  if (read(fd, buf, len) < 0) {
+    free(buf);
+    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
+  }
+  ary = mrb_ary_new_capa(mrb, len);
+  for (i = 0; i < len; i++) {
+    mrb_ary_push(mrb, ary, mrb_fixnum_value((uint8_t)buf[i]));
+  }
+  free(buf);
+  return ary;
+}
+
 static mrb_value mrb_i2c_write(mrb_state *mrb, mrb_value self) {
   int fd = mrb_fixnum(IV_GET("@fd"));
   int data;
@@ -523,6 +569,8 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   mrb_define_method(mrb, i2c, "initialize", mrb_i2c_init, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "close", mrb_i2c_close, MRB_ARGS_NONE());
   mrb_define_method(mrb, i2c, "_read", mrb_i2c_read, MRB_ARGS_NONE());
+  mrb_define_method(mrb, i2c, "_read_ary", mrb_i2c_read_ary, MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, i2c, "_read_str", mrb_i2c_read_str, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "_write", mrb_i2c_write, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "read_reg_8", mrb_i2c_read_reg_8, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "read_reg_16", mrb_i2c_read_reg_16, MRB_ARGS_REQ(1));

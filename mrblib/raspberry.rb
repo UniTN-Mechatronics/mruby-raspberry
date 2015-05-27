@@ -57,10 +57,19 @@ module Raspberry
       end
     end
     
+    def read_ary(n=1)
+      self._read_ary(n)
+    end
+    
+    def read_unpack(n, map=nil)
+      map = 'C' * n unless map
+      self._read_str(n).unpack(map)
+    end
+    
     def write(s)
       case s
       when Array
-        s.each {|c| self._write c; Raspberry::Timing.delay_micro(@delay || 5000) }
+        s.each {|c| self.write c; Raspberry::Timing.delay_micro(@delay || 5000) }
       when String
         if s.length == 0 then
           self._write(s.bytes[0])
