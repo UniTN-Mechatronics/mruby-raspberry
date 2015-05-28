@@ -6,6 +6,7 @@ MRuby::Gem::Specification.new('mruby-raspberry') do |spec|
   spec.version = 0.1
   spec.description = spec.summary
   spec.homepage = "Not yet defined"
+  spec.add_dependency('iij/mruby-pack', '>= 0.0.0', :github => 'iij/mruby-pack')
   
   if not build.kind_of? MRuby::CrossBuild then
     spec.cc.command = 'gcc' # clang does not work!
