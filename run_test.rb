@@ -14,6 +14,5 @@ MRuby::Build.new do |conf|
   conf.gembox 'default'
   conf.gem File.dirname(__FILE__)
   conf.gem :github => 'iij/mruby-errno', :branch => 'master'
-  conf.gem :github => 'iij/mruby-pack', :branch => 'master'
   conf.cc.defines = %w(ENABLE_READLINE)
 end
