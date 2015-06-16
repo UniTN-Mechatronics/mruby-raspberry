@@ -37,6 +37,9 @@
 #include "mruby/array.h"
 //#include "i2c.h"
 
+#define E_I2C_ERROR (mrb_class_get(mrb, "I2CError"))
+
+
 static int g_setup = 0;
 
 /*
@@ -390,7 +393,7 @@ static mrb_value mrb_i2c_read(mrb_state *mrb, mrb_value self) {
   mrb_int res;
   res = wiringPiI2CRead(fd);
   if (res < 0) {
-    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
+    mrb_raise(mrb, E_I2C_ERROR, strerror(errno));
   }
   return mrb_fixnum_value(res);
 }
@@ -402,7 +405,7 @@ static mrb_value mrb_i2c_read_str(mrb_state *mrb, mrb_value self) {
   char *buf;
   mrb_get_args(mrb, "i", &len);
   if (len > I2C_SMBUS_BLOCK_MAX + 2)
-    mrb_raise(mrb, E_RUNTIME_ERROR, "Too big");
+    mrb_raise(mrb, E_I2C_ERROR, "Too big");
 
   buf = (char*)malloc(len);
   memset(buf, 0, len);
@@ -423,7 +426,7 @@ static mrb_value mrb_i2c_read_ary(mrb_state *mrb, mrb_value self) {
   char *buf;
   mrb_get_args(mrb, "i", &len);
   if (len > I2C_SMBUS_BLOCK_MAX + 2)
-    mrb_raise(mrb, E_RUNTIME_ERROR, "Too big");
+    mrb_raise(mrb, E_I2C_ERROR, "Too big");
 
   buf = (char*)malloc(len);
   memset(buf, 0, len);
@@ -446,7 +449,7 @@ static mrb_value mrb_i2c_write(mrb_state *mrb, mrb_value self) {
   mrb_get_args(mrb, "i", &data);
   res = wiringPiI2CWrite(fd, data);
   if (res < 0) {
-    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
+    mrb_raise(mrb, E_I2C_ERROR, strerror(errno));
   }
   return mrb_fixnum_value(res);
 }
@@ -466,7 +469,7 @@ static mrb_value mrb_i2c_read_reg(mrb_state *mrb, mrb_value self, int bits) {
     mrb_raise(mrb, E_ARGUMENT_ERROR, "Only 8 or 16 bits allowed!");
   }
   if (res < 0) {
-    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
+    mrb_raise(mrb, E_I2C_ERROR, strerror(errno));
   }
   return mrb_fixnum_value(res);
 }
@@ -494,7 +497,7 @@ static mrb_value mrb_i2c_write_reg(mrb_state *mrb, mrb_value self, int bits) {
     mrb_raise(mrb, E_ARGUMENT_ERROR, "Only 8 or 16 bits allowed!");
   }
   if (res < 0) {
-    mrb_raise(mrb, E_RUNTIME_ERROR, strerror(errno));
+    mrb_raise(mrb, E_I2C_ERROR, strerror(errno));
   }
   return mrb_fixnum_value(res);
 }
@@ -566,6 +569,7 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   mrb_define_method(mrb, serial, "flush", mrb_serial_flush, MRB_ARGS_NONE());
 
   i2c = mrb_define_class_under(mrb, rasp, "I2C", mrb->object_class);
+  mrb_define_class(mrb, "I2CError", mrb_class_get(mrb, "Exception"));
   mrb_define_method(mrb, i2c, "initialize", mrb_i2c_init, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "close", mrb_i2c_close, MRB_ARGS_NONE());
   mrb_define_method(mrb, i2c, "_read", mrb_i2c_read, MRB_ARGS_NONE());
