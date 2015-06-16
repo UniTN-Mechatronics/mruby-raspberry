@@ -514,7 +514,6 @@ static mrb_value mrb_i2c_write_reg_16(mrb_state *mrb, mrb_value self) {
 
 void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   struct RClass *rasp, *core, *specifics, *timing, *serial, *i2c;
-  struct RClass *i2c_error;
   rasp = mrb_define_module(mrb, "Raspberry");
   mrb_define_class_method(mrb, rasp, "setup", mrb_wiringPiSetup, MRB_ARGS_NONE());
   mrb_define_class_method(mrb, rasp, "set_priority", mrb_priority_SetPri, MRB_ARGS_REQ(1));
@@ -570,7 +569,7 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   mrb_define_method(mrb, serial, "flush", mrb_serial_flush, MRB_ARGS_NONE());
 
   i2c = mrb_define_class_under(mrb, rasp, "I2C", mrb->object_class);
-  i2c_error = mrb_define_class(mrb, "I2CError", mrb_class_get(mrb, "Exception"));
+  mrb_define_class(mrb, "I2CError", mrb_class_get(mrb, "Exception"));
   mrb_define_method(mrb, i2c, "initialize", mrb_i2c_init, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "close", mrb_i2c_close, MRB_ARGS_NONE());
   mrb_define_method(mrb, i2c, "_read", mrb_i2c_read, MRB_ARGS_NONE());
