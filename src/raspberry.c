@@ -364,7 +364,8 @@ static mrb_value mrb_i2c_init(mrb_state *mrb, mrb_value self) {
   mrb_get_args(mrb, "i", &devId);
   
   snprintf(filename, 19, "/dev/i2c-%d", piBoardRev() - 1);
-  fd = open(filename, O_RDWR);
+  // fd = open(filename, O_RDWR);
+  fd = wiringPiI2CSetup(devId);
   if (fd < 0) {
     mrb_raisef(mrb, E_RUNTIME_ERROR, "Error opening device %S.\n%S", mrb_str_new_cstr(mrb, filename), mrb_str_new_cstr(mrb, strerror(errno)));
   }
