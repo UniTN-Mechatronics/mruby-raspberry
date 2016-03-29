@@ -46,21 +46,6 @@ module Raspberry
       self.read.chr
     end
     
-    def read(n=nil)
-      if n && n > 0 then
-        raise "ArgumentError", "Only Fixnum as argument" unless n.kind_of? Fixnum
-        ary = []
-        n.times {|i| ary << self._read; Raspberry::Timing.delay_micro(@delay || 5000) }
-        return ary
-      else
-        return self._read
-      end
-    end
-    
-    def read_ary(n=1)
-      self._read_ary(n)
-    end
-    
     def read_unpack(n, map=nil)
       map = 'C' * n unless map
       self._read_str(n).unpack(map)

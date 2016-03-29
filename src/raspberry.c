@@ -391,12 +391,31 @@ static mrb_value mrb_i2c_close(mrb_state *mrb, mrb_value self) {
 
 static mrb_value mrb_i2c_read(mrb_state *mrb, mrb_value self) {
   int fd = mrb_fixnum(IV_GET("@fd"));
+  mrb_int len = 0;
   mrb_int res;
-  res = wiringPiI2CRead(fd);
-  if (res < 0) {
-    mrb_raise(mrb, E_I2C_ERROR, strerror(errno));
+  if (mrb_get_args(mrb, "i", &len) == 0) { // No arguments, read one char
+    res = wiringPiI2CRead(fd);
+    if (res < 0) {
+      mrb_raise(mrb, E_I2C_ERROR, strerror(errno));
+    }
+    return mrb_fixnum_value(res);
   }
-  return mrb_fixnum_value(res);
+  else { // read len characters into a ruby array
+    mrb_value ary = mrb_ary_new(mrb);
+    mrb_int i, howlong;
+    if (len > I2C_SMBUS_BLOCK_MAX + 2)
+      mrb_raise(mrb, E_I2C_ERROR, "Too big");
+    howlong = mrb_fixnum(IV_GET("@delay"));
+    for (i = 0; i < len; i++) {
+      res = wiringPiI2CRead(fd);
+      if (res < 0) {
+        mrb_raise(mrb, E_I2C_ERROR, strerror(errno));
+      }
+      delay(howlong);
+      mrb_ary_push(mrb, ary, mrb_fixnum_value(res));
+    }
+    return ary;
+  }
 }
 
 static mrb_value mrb_i2c_read_str(mrb_state *mrb, mrb_value self) {
@@ -404,7 +423,9 @@ static mrb_value mrb_i2c_read_str(mrb_state *mrb, mrb_value self) {
   mrb_int len = 0;
   mrb_value str;
   char *buf;
-  mrb_get_args(mrb, "i", &len);
+  if (mrb_get_args(mrb, "i", &len) != 1) {
+   len = 1; 
+  }
   if (len > I2C_SMBUS_BLOCK_MAX + 2)
     mrb_raise(mrb, E_I2C_ERROR, "Too big");
 
@@ -425,7 +446,9 @@ static mrb_value mrb_i2c_read_ary(mrb_state *mrb, mrb_value self) {
   int i;
   mrb_value ary;
   char *buf;
-  mrb_get_args(mrb, "i", &len);
+  if (mrb_get_args(mrb, "|i", &len) != 1) {
+    len = 1;
+  }
   if (len > I2C_SMBUS_BLOCK_MAX + 2)
     mrb_raise(mrb, E_I2C_ERROR, "Too big");
 
@@ -573,9 +596,9 @@ void mrb_mruby_raspberry_gem_init(mrb_state *mrb) {
   mrb_define_class(mrb, "I2CError", mrb_class_get(mrb, "Exception"));
   mrb_define_method(mrb, i2c, "initialize", mrb_i2c_init, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "close", mrb_i2c_close, MRB_ARGS_NONE());
-  mrb_define_method(mrb, i2c, "_read", mrb_i2c_read, MRB_ARGS_NONE());
-  mrb_define_method(mrb, i2c, "_read_ary", mrb_i2c_read_ary, MRB_ARGS_REQ(1));
-  mrb_define_method(mrb, i2c, "_read_str", mrb_i2c_read_str, MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, i2c, "read", mrb_i2c_read, MRB_ARGS_OPT(1));
+  mrb_define_method(mrb, i2c, "read_ary", mrb_i2c_read_ary, MRB_ARGS_OPT(1));
+  mrb_define_method(mrb, i2c, "read_str", mrb_i2c_read_str, MRB_ARGS_OPT(1));
   mrb_define_method(mrb, i2c, "_write", mrb_i2c_write, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "read_reg_8", mrb_i2c_read_reg_8, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, i2c, "read_reg_16", mrb_i2c_read_reg_16, MRB_ARGS_REQ(1));
