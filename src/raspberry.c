@@ -27,6 +27,7 @@
 #include <wiringPiI2C.h>
 #include <sched.h>
 #include <linux/i2c-dev.h>
+#include <sys/ioctl.h>
 
 #include "mruby.h"
 #include "mruby/variable.h"
@@ -38,7 +39,7 @@
 //#include "i2c.h"
 
 #define E_I2C_ERROR (mrb_class_get(mrb, "I2CError"))
-
+#define I2C_SMBUS_BLOCK_MAX 32
 
 static int g_setup = 0;
 
@@ -56,7 +57,7 @@ static mrb_value mrb_wiringPiSetup(mrb_state *mrb, mrb_value self) {
     result = mrb_false_value();
   }
   else {
-    wiringPiSetup();
+    wiringPiSetupGpio();
     g_setup = 1;
     result = mrb_true_value();
   }
